@@ -1,0 +1,271 @@
+const languageBtn = document.getElementById("languageBtn");
+const studentForm = document.getElementById("studentForm");
+const studentList = document.getElementById("studentList");
+const classLevel = document.getElementById("classLevel");
+const gradeSelect = document.getElementById("grade");
+const gradeChoices = document.getElementById("gradeChoices");
+
+function loadContactNumbers() {
+    const defaults = {
+        tele: "+251 900 000 000",
+        saf: "0970093888",
+        emergency: "0715588785"
+    };
+    let contacts = defaults;
+
+    try {
+        contacts = { ...defaults, ...JSON.parse(localStorage.getItem("brightContacts")) };
+    } catch (error) {
+        contacts = defaults;
+    }
+
+    const setContact = (elementId, value) => {
+        const link = document.getElementById(elementId);
+        if (!link) return;
+        link.textContent = value;
+        link.href = `tel:${value.replace(/[\s()-]/g, "")}`;
+    };
+
+    setContact("teleContact", contacts.tele);
+    setContact("safContact", contacts.saf);
+    setContact("emergencyContact", contacts.emergency);
+}
+
+loadContactNumbers();
+
+if (classLevel && gradeSelect) {
+    function renderGradeChoices(grades) {
+        if (!gradeChoices) return;
+
+        gradeChoices.innerHTML = "";
+        gradeChoices.classList.toggle("visible", grades.length > 0);
+        grades.forEach((grade) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "grade-choice";
+            button.textContent = grade;
+            button.addEventListener("click", () => {
+                gradeSelect.value = grade;
+                gradeChoices.querySelectorAll(".grade-choice").forEach((choice) => {
+                    choice.classList.remove("selected");
+                });
+                button.classList.add("selected");
+                displayClassRosters(classLevel.value, grade);
+            });
+            gradeChoices.appendChild(button);
+        });
+    }
+
+    function updateGradeChoices() {
+        const primaryGrades = ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8"];
+        const secondaryGrades = ["Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+        const grades = classLevel.value === "Primary"
+            ? primaryGrades
+            : classLevel.value === "Secondary"
+                ? secondaryGrades
+                : [];
+
+        gradeSelect.innerHTML = "";
+
+        if (grades.length === 0) {
+            gradeSelect.disabled = false;
+            gradeSelect.innerHTML = "";
+            gradeSelect.add(new Option("Select Grade", ""));
+            ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"]
+                .forEach((grade) => gradeSelect.add(new Option(grade, grade)));
+            renderGradeChoices([]);
+            return;
+        }
+
+        gradeSelect.disabled = false;
+        gradeSelect.add(new Option("Select Grade", ""));
+        grades.forEach((grade) => gradeSelect.add(new Option(grade, grade)));
+        renderGradeChoices(grades);
+        displayClassRosters();
+    }
+
+    classLevel.addEventListener("change", updateGradeChoices);
+    gradeSelect.addEventListener("change", () => {
+        displayClassRosters(classLevel.value, gradeSelect.value);
+    });
+
+    document.querySelectorAll(".grade-card").forEach((card) => {
+        const chooseGradeLevel = () => {
+            classLevel.value = card.dataset.classLevel;
+            updateGradeChoices();
+
+            document.getElementById("registration").scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+            gradeSelect.focus();
+        };
+
+        card.addEventListener("click", chooseGradeLevel);
+        card.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                chooseGradeLevel();
+            }
+        });
+    });
+}
+
+let currentLanguage = "English";
+
+if (languageBtn) {
+    languageBtn.addEventListener("click", function () {
+        if (currentLanguage === "English") {
+            document.getElementById("welcome").textContent =
+                "Baga Gara Bright School Nagaan Dhuftan";
+            document.querySelector(".hero-content p").textContent =
+                "Barnoota qulqullina qabu egeree ifa ta'eef.";
+            document.querySelector(".about h2").textContent =
+                "Waa'ee Mana Barumsaa Keenya";
+            document.querySelector(".about p").textContent =
+                "Bright School barattoota Sadarkaa 1ffaa fi 2ffaa barnoota qulqullina qabu kenna.";
+            document.querySelector(".programs h2").textContent =
+                "Sagantaalee Barnootaa Keenya";
+            document.querySelectorAll(".card h3")[0].textContent =
+                "Mana Barumsaa Sadarkaa 1ffaa";
+            document.querySelectorAll(".card h3")[1].textContent =
+                "Mana Barumsaa Sadarkaa 2ffaa";
+            document.querySelector(".contact h2").textContent =
+                "Nu Qunnamaa";
+
+            languageBtn.textContent = "English";
+            currentLanguage = "Afaan Oromo";
+        } else {
+            location.reload();
+        }
+    });
+}
+
+let students = [];
+
+if (studentForm && studentList) {
+    try {
+        students = JSON.parse(localStorage.getItem("brightStudents")) || [];
+        if (!Array.isArray(students)) {
+            students = [];
+        }
+    } catch (error) {
+        students = [];
+        localStorage.removeItem("brightStudents");
+    }
+}
+
+function displayStudents(selectedClass = "", selectedGrade = "") {
+    if (studentList) {
+        studentList.innerHTML = "";
+
+        students.forEach((student) => {
+            const div = document.createElement("div");
+            const heading = document.createElement("h3");
+            heading.textContent = student.name || "";
+            div.appendChild(heading);
+
+            const fields = [
+                ["ID", student.id],
+                ["Gender", student.gender],
+                ["Grade", student.grade],
+                ["Class", student.classLevel],
+                ["Parent", student.parent],
+                ["Phone", student.phone],
+                ["Address", student.address]
+            ];
+
+            fields.forEach(([label, value]) => {
+                const paragraph = document.createElement("p");
+                paragraph.textContent = `${label}: ${value || ""}`;
+                div.appendChild(paragraph);
+            });
+
+            studentList.appendChild(div);
+        });
+    }
+
+    displayClassRosters(selectedClass, selectedGrade);
+}
+
+function displayClassRosters(selectedClass = "", selectedGrade = "") {
+    const rosters = {
+        Primary: document.getElementById("primaryRoster"),
+        Secondary: document.getElementById("secondaryRoster")
+    };
+    Object.keys(rosters).forEach((level) => {
+        const roster = rosters[level];
+        if (roster) roster.innerHTML = "";
+    });
+
+    if (!selectedClass || !selectedGrade || !rosters[selectedClass]) return;
+
+    const roster = rosters[selectedClass];
+    const selectedGradeNumber = Number((selectedGrade.match(/\d+/) || [])[0]);
+    const gradeStudents = students.filter((student) => {
+        const studentGradeNumber = Number((String(student.grade || "").match(/\d+/) || [])[0]);
+        const studentClass = student.classLevel ||
+            (studentGradeNumber <= 8 ? "Primary" : "Secondary");
+        return studentClass === selectedClass && studentGradeNumber === selectedGradeNumber;
+    });
+
+    const gradeSection = document.createElement("section");
+    gradeSection.className = "roster-grade";
+    const heading = document.createElement("h4");
+    heading.textContent = selectedGrade;
+    gradeSection.appendChild(heading);
+
+    if (gradeStudents.length === 0) {
+        const emptyMessage = document.createElement("p");
+        emptyMessage.className = "roster-empty";
+        emptyMessage.textContent = `No students registered in ${selectedGrade} yet.`;
+        gradeSection.appendChild(emptyMessage);
+    } else {
+        const list = document.createElement("ul");
+        gradeStudents.forEach((student) => {
+            const item = document.createElement("li");
+            item.textContent = student.name || student.id || "Student";
+            list.appendChild(item);
+        });
+        gradeSection.appendChild(list);
+    }
+
+    roster.appendChild(gradeSection);
+}
+
+document.querySelectorAll(".class-roster").forEach((roster) => {
+    roster.addEventListener("click", (event) => event.stopPropagation());
+});
+
+if (studentForm) {
+    studentForm.addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        const student = {
+            id: document.getElementById("studentId").value.trim(),
+            name: document.getElementById("studentName").value.trim(),
+            gender: document.getElementById("gender").value,
+            dob: document.getElementById("dob").value,
+            grade: document.getElementById("grade").value,
+            classLevel: document.getElementById("classLevel").value,
+            parent: document.getElementById("parentName").value.trim(),
+            phone: document.getElementById("phone").value.trim(),
+            address: document.getElementById("address").value.trim()
+        };
+
+        if (students.some((item) =>
+            String(item.id || "").toLowerCase() === student.id.toLowerCase()
+        )) {
+            alert("Student ID already exists!");
+            return;
+        }
+
+        students.push(student);
+        localStorage.setItem("brightStudents", JSON.stringify(students));
+        displayStudents(student.classLevel, student.grade);
+        studentForm.reset();
+        alert("Student registered successfully!");
+    });
+}
+
+displayStudents();
